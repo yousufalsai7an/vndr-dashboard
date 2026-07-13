@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VNDR Operations Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3441;
+    --accent: #f0a500;
+    --accent2: #1f6feb;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #6e7681;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  .header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .header-sub {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 1px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .last-update {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .refresh-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* TABS */
+  .tabs {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+  }
+
+  .tab {
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* MAIN */
+  .main {
+    padding: 20px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    margin-top: 20px;
+  }
+
+  .section-header:first-child { margin-top: 0; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* KPI GRID */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    transition: border-color 0.2s;
+  }
+
+  .kpi-card:hover { border-color: var(--accent2); }
+
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 500;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .kpi-value {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .kpi-value.green { color: var(--green); }
+  .kpi-value.yellow { color: var(--yellow); }
+  .kpi-value.red { color: var(--red); }
+  .kpi-value.accent { color: var(--accent); }
+  .kpi-value.blue { color: var(--accent2); }
+
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  /* TWO COLUMNS */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+  }
+
+  .card-body { padding: 14px 16px; }
+
+  /* DRIVER TABLE */
+  .driver-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .driver-table th {
+    text-align: left;
+    padding: 8px 10px;
+    color: var(--text3);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .driver-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  .driver-table tr:last-child td { border-bottom: none; }
+
+  .driver-table tr:hover td { background: var(--surface2); }
+
+  .driver-name {
+    font-weight: 500;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge-red { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-blue { background: rgba(31,111,235,0.15); color: var(--accent2); }
+  .badge-gray { background: rgba(139,148,158,0.15); color: var(--text2); }
+  .badge-accent { background: rgba(240,165,0,0.15); color: var(--accent); }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* BATCH BAR */
+  .batch-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .batch-row:last-child { border-bottom: none; }
+
+  .batch-label {
+    font-size: 11px;
+    color: var(--text2);
+    font-weight: 600;
+    width: 56px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .batch-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .batch-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent2);
+    transition: width 0.6s ease;
+  }
+
+  .batch-count {
+    font-size: 11px;
+    color: var(--text3);
+    width: 20px;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .batch-names {
+    font-size: 10px;
+    color: var(--text3);
+    flex: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ABSENCE */
+  .absence-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .absence-item:last-child { border-bottom: none; }
+
+  .absence-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    flex-shrink: 0;
+  }
+
+  .absence-name {
+    font-weight: 500;
+    font-size: 12px;
+    flex: 1;
+  }
+
+  .absence-reason {
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  /* MONTHLY TABLE */
+  .monthly-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .monthly-table th {
+    text-align: center;
+    padding: 9px 8px;
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .monthly-table th:first-child { text-align: left; }
+
+  .monthly-table td {
+    padding: 9px 8px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    color: var(--text);
+  }
+
+  .monthly-table td:first-child { text-align: left; }
+  .monthly-table tr:last-child td { border-bottom: none; }
+  .monthly-table tr:hover td { background: var(--surface2); }
+
+  /* LOADING */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px;
+    color: var(--text2);
+    font-size: 13px;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ERROR */
+  .error-box {
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 8px;
+    padding: 16px;
+    color: var(--red);
+    font-size: 12px;
+    margin: 12px 0;
+  }
+
+  /* PANEL */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* PERF NOTE */
+  .perf-note {
+    background: rgba(31,111,235,0.08);
+    border: 1px solid rgba(31,111,235,0.2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 12px;
+    font-style: italic;
+  }
+
+  /* MONTH SELECTOR */
+  .month-selector {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .month-btn {
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .month-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .month-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* RANKING */
+  .rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rank-item:last-child { border-bottom: none; }
+
+  .rank-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    width: 18px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .rank-num.gold { color: #f0a500; }
+  .rank-num.silver { color: #8b949e; }
+  .rank-num.bronze { color: #a0522d; }
+
+  .rank-name { flex: 1; font-weight: 500; font-size: 12px; }
+  .rank-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">VD</div>
+    <div>
+      <div class="header-title">VINDAR Operations Dashboard</div>
+      <div class="header-sub">Talabat · Kuwait · Live from Google Sheets</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div class="last-update" id="lastUpdate">Loading...</div>
+    <button class="refresh-btn" onclick="loadAllData()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('daily', this)">📊 Daily Report</div>
+  <div class="tab" onclick="switchTab('monthly', this)">📅 Monthly</div>
+  <div class="tab" onclick="switchTab('drivers', this)">🚗 All Drivers</div>
+</div>
+
+<div class="main">
+
+  <!-- DAILY PANEL -->
+  <div class="panel active" id="panel-daily">
+    <div id="daily-content">
+      <div class="loading"><div class="spinner"></div> Loading data from Google Sheets...</div>
+    </div>
+  </div>
+
+  <!-- MONTHLY PANEL -->
+  <div class="panel" id="panel-monthly">
+    <div id="monthly-content">
+      <div class="loading"><div class="spinner"></div> Loading...</div>
+    </div>
+  </div>
+
+  <!-- DRIVERS PANEL -->
+  <div class="panel" id="panel-drivers">
+    <div id="drivers-content">
+      <div class="loading"><div class="spinner"></div> Loading...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const API_KEY   = 'AIzaSyCl766yKMjS_rR8VQzxMXWlVT-Zn_Qt4Tk';
+const SHEET_ID  = '11EJoOGo1UC-fQAH3uajDhcar_jCkbf9dMYv6OfDx60Y';
+const BASE_URL  = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let allSheets   = [];
+let allData     = {};   // { sheetName: [ {date, batch, orders, hours, ...} ] }
+let selectedMonth = null;
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── FETCH SHEET LIST ─────────────────────────────────────────────────────────
+async function fetchSheetNames() {
+  const r = await fetch(`${BASE_URL}?key=${API_KEY}&fields=sheets.properties.title`);
+  if (!r.ok) throw new Error(`API error ${r.status}: ${r.statusText}`);
+  const d = await r.json();
+  return d.sheets.map(s => s.properties.title);
+}
+
+// ── FETCH ONE SHEET ──────────────────────────────────────────────────────────
+async function fetchSheet(name) {
+  const enc = encodeURIComponent(name);
+  const r   = await fetch(`${BASE_URL}/values/${enc}?key=${API_KEY}&majorDimension=ROWS`);
+  if (!r.ok) return [];
+  const d   = await r.json();
+  return d.values || [];
+}
+
+// ── PARSE DATE ───────────────────────────────────────────────────────────────
+function parseDate(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  raw = raw.trim();
+
+  // DD-MM-YYYY or DD/MM/YYYY
+  let m = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+  if (m) {
+    let [, d, mo, y] = m;
+    if (y.length === 2) y = '20' + y;
+    return new Date(+y, +mo - 1, +d);
+  }
+  // YYYY-MM-DD (Google sometimes swaps day/month here, handled below)
+  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    const [, y, mo, d] = m;
+    return new Date(+y, +mo - 1, +d);
+  }
+  return null;
+}
+
+// ── PARSE HOURS ──────────────────────────────────────────────────────────────
+function parseHours(raw) {
+  if (raw == null || raw === '') return null;
+  const v = parseFloat(String(raw).replace(',', '.'));
+  if (isNaN(v)) return null;
+  if (v > 20) return null;        // invalid
+  if (v < 1 && v > 0) return v * 24;  // Excel fraction
+  return v;
+}
+
+// ── PARSE SINGLE DRIVER SHEET ────────────────────────────────────────────────
+function parseDriverSheet(rows) {
+  // Find header row (contains "Date" or "date")
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    if (rows[i].some(c => /^date$/i.test(String(c).trim()))) {
+      headerIdx = i; break;
+    }
+  }
+  if (headerIdx === -1) return { name: '', id: '', rows: [] };
+
+  // Driver name & ID from rows above header
+  let driverName = '', driverId = '';
+  for (let i = 0; i < headerIdx; i++) {
+    const joined = rows[i].join(' ').trim();
+    if (joined) { driverName = joined; }
+  }
+
+  const header = rows[headerIdx].map(h => String(h).trim().toLowerCase());
+  const iDate  = header.findIndex(h => h === 'date');
+  const iTime  = header.findIndex(h => h === 'time');
+  const iBatch = header.findIndex(h => h === 'batch');
+  const iOrds  = header.findIndex(h => /order/.test(h));
+  const iHours = header.findIndex(h => /working.*hour|hour/i.test(h));
+
+  const NON_WORK = /sick|no.?shift|family|suspend|emergency/i;
+
+  const parsed = [];
+  let prevDate = null;
+
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row  = rows[i];
+    if (!row || row.every(c => !c)) continue;
+
+    const timeVal = iTime >= 0 ? String(row[iTime] || '').trim() : '';
+    const isNonWork = NON_WORK.test(timeVal);
+
+    let date = parseDate(row[iDate] || '');
+
+    // Fix swapped day/month by enforcing monotonic increase
+    if (date && prevDate) {
+      if (date < prevDate) {
+        // Try swapping day and month
+        const orig = date;
+        const swapped = new Date(orig.getFullYear(), orig.getDate() - 1, orig.getMonth() + 1);
+        if (swapped >= prevDate) date = swapped;
+      }
+    }
+    if (date) prevDate = date;
+
+    const batch  = iBatch  >= 0 ? parseInt(row[iBatch]  || '0') : 0;
+    const orders = iOrds   >= 0 ? parseInt(row[iOrds]   || '0') : 0;
+    const hours  = iHours  >= 0 ? parseHours(row[iHours]) : null;
+
+    parsed.push({ date, batch, orders, hours, isNonWork, timeVal });
+  }
+
+  return { name: driverName, rows: parsed };
+}
+
+// ── LOAD ALL DATA ─────────────────────────────────────────────────────────────
+async function loadAllData() {
+  document.getElementById('lastUpdate').textContent = 'Updating...';
+  try {
+    allSheets = await fetchSheetNames();
+    allData   = {};
+
+    await Promise.all(allSheets.map(async name => {
+      const raw   = await fetchSheet(name);
+      allData[name] = parseDriverSheet(raw);
+    }));
+
+    document.getElementById('lastUpdate').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    renderDaily();
+    renderMonthly();
+    renderDrivers();
+
+  } catch (e) {
+    document.getElementById('lastUpdate').textContent = 'Error';
+    ['daily-content', 'monthly-content', 'drivers-content'].forEach(id => {
+      document.getElementById(id).innerHTML =
+        `<div class="error-box">⚠ Could not load data: ${e.message}</div>`;
+    });
+  }
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function dateKey(d) {
+  if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function isSameDay(a, b) {
+  return a && b && a.getFullYear()===b.getFullYear() &&
+         a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+function getYesterday() {
+  const d = new Date(); d.setDate(d.getDate() - 1); return d;
+}
+
+function fmt3(n) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toFixed(3);
+}
+
+function fmtPct(n) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toFixed(1) + '%';
+}
+
+function gradeColor(g) {
+  return g==='A' ? 'green' : g==='B' ? 'blue' : g==='C' ? 'yellow' : 'red';
+}
+
+function gradeDriver(avgOrders) {
+  if (avgOrders >= 18) return 'A';
+  if (avgOrders >= 14) return 'B';
+  if (avgOrders >= 10) return 'C';
+  return 'D';
+}
+
+function currentBatch(driverRows) {
+  const working = driverRows.filter(r => !r.isNonWork && r.orders > 0 && r.batch > 0);
+  if (!working.length) return null;
+  return working[working.length - 1].batch;
+}
+
+// ── RENDER DAILY ──────────────────────────────────────────────────────────────
+function renderDaily() {
+  const yesterday = getYesterday();
+  const today     = new Date();
+
+  let totalOrders = 0, totalHours = 0;
+  let activeCount = 0, absentCount = 0;
+  let twelveHrOk  = 0, activeWithHours = 0;
+  let batchDrivers = {};
+  const absences   = [];
+  const driverRows = [];
+
+  const mtdStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  let mtdOrders  = 0, mtdHours = 0;
+  let fakeCount  = 0;
+
+  allSheets.forEach(name => {
+    const driver = allData[name];
+    if (!driver) return;
+    fakeCount++; // all are Fake ID per your data
+
+    // Yesterday's row
+    const yRow = driver.rows.find(r => isSameDay(r.date, yesterday));
+
+    if (!yRow || yRow.isNonWork || yRow.orders === 0) {
+      absentCount++;
+      absences.push({ name: driver.name || name, reason: yRow ? yRow.timeVal : 'No row recorded' });
+    } else {
+      activeCount++;
+      totalOrders += yRow.orders;
+      if (yRow.hours != null) {
+        totalHours  += yRow.hours;
+        activeWithHours++;
+        if (yRow.hours >= 12) twelveHrOk++;
+      }
+
+      const batch = yRow.batch || currentBatch(driver.rows) || 0;
+      if (batch > 0) {
+        if (!batchDrivers[batch]) batchDrivers[batch] = [];
+        batchDrivers[batch].push((driver.name || name).split(' ')[0]);
+      }
+    }
+
+    // MTD
+    driver.rows.forEach(r => {
+      if (!r.date || r.isNonWork) return;
+      if (r.date >= mtdStart && r.date <= yesterday) {
+        mtdOrders += r.orders || 0;
+        if (r.hours) mtdHours += r.hours;
+      }
+    });
+
+    // For driver table
+    const topDriver = allData[name];
+    const yR = topDriver.rows.find(r => isSameDay(r.date, yesterday));
+    driverRows.push({
+      name: driver.name || name,
+      orders: yR && !yR.isNonWork ? yR.orders : 0,
+      hours:  yR && !yR.isNonWork ? yR.hours  : null,
+      batch:  yR && !yR.isNonWork ? yR.batch  : (currentBatch(driver.rows) || '—'),
+      active: yR && !yR.isNonWork && yR.orders > 0,
+      reason: (!yR || yR.isNonWork) ? (yR ? yR.timeVal : 'No row') : ''
+    });
+  });
+
+  const totalDrivers    = allSheets.length;
+  const avgOrders       = activeCount ? totalOrders / activeCount : 0;
+  const dailyUTR        = totalHours  ? totalOrders / totalHours  : null;
+  const mtdUTR          = mtdHours    ? mtdOrders   / mtdHours    : null;
+  const shiftPct        = activeWithHours ? (twelveHrOk / activeWithHours) * 100 : null;
+
+  // Sort drivers by orders desc for top performer
+  driverRows.sort((a,b) => b.orders - a.orders);
+
+  // Build batch bars
+  let batchHTML = '';
+  [1,2,3,4,5,6,7].forEach(b => {
+    const names = batchDrivers[b] || [];
+    const pct   = totalDrivers ? (names.length / totalDrivers) * 100 : 0;
+    batchHTML += `
+      <div class="batch-row">
+        <div class="batch-label">Batch ${b}</div>
+        <div class="batch-bar-wrap"><div class="batch-bar-fill" style="width:${pct}%"></div></div>
+        <div class="batch-count">${names.length}</div>
+        <div class="batch-names">${names.join(', ') || '—'}</div>
+      </div>`;
+  });
+
+  // Absences
+  let absHTML = absences.length
+    ? absences.map(a => `
+        <div class="absence-item">
+          <div class="absence-dot"></div>
+          <div class="absence-name">${a.name}</div>
+          <div class="absence-reason">${a.reason || 'No row recorded'}</div>
+        </div>`).join('')
+    : '<div style="color:var(--text3);font-size:12px;padding:8px 0">All drivers present ✓</div>';
+
+  // Driver rows table
+  let drTableHTML = driverRows.map((d,i) => {
+    const grade = d.active ? gradeDriver(d.orders) : 'D';
+    return `<tr>
+      <td class="mono" style="color:var(--text3)">${i+1}</td>
+      <td class="driver-name">${d.name}</td>
+      <td class="mono">${d.active ? d.orders : '—'}</td>
+      <td class="mono">${d.hours != null ? fmt3(d.hours) : '—'}</td>
+      <td>${d.batch > 0 ? `<span class="badge badge-blue">B${d.batch}</span>` : '—'}</td>
+      <td><span class="badge badge-${gradeColor(grade)}">${grade}</span></td>
+      <td style="color:${d.active ? 'var(--green)':'var(--red)'}">
+        ${d.active ? '✓ Active' : (d.reason || 'Absent')}
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('daily-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-label">Performance Date: ${yesterday.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Drivers</div>
+        <div class="kpi-value">${totalDrivers}</div>
+        <div class="kpi-sub">Registered on Talabat</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Active Today</div>
+        <div class="kpi-value ${activeCount === totalDrivers ? 'green' : 'yellow'}">${activeCount}</div>
+        <div class="kpi-sub">Present on duty</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Absences</div>
+        <div class="kpi-value ${absentCount === 0 ? 'green' : 'red'}">${absentCount}</div>
+        <div class="kpi-sub">No-show / Suspended</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">12-Hr Shift Rate</div>
+        <div class="kpi-value ${shiftPct >= 90 ? 'green' : shiftPct >= 70 ? 'yellow' : 'red'}">${fmtPct(shiftPct)}</div>
+        <div class="kpi-sub">${twelveHrOk} of ${activeWithHours} drivers</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Daily Orders</div>
+        <div class="kpi-value accent">${totalOrders}</div>
+        <div class="kpi-sub">Completed yesterday</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">MTD Orders</div>
+        <div class="kpi-value blue">${mtdOrders}</div>
+        <div class="kpi-sub">Month to date</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Orders/Driver</div>
+        <div class="kpi-value">${fmt3(avgOrders)}</div>
+        <div class="kpi-sub">Per active driver</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Daily UTR</div>
+        <div class="kpi-value ${dailyUTR >= 1.2 ? 'green' : dailyUTR >= 0.9 ? 'yellow' : 'red'}">${fmt3(dailyUTR)}</div>
+        <div class="kpi-sub">Orders per hour</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">MTD UTR</div>
+        <div class="kpi-value">${fmt3(mtdUTR)}</div>
+        <div class="kpi-sub">Month to date</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Fake ID</div>
+        <div class="kpi-value yellow">${fakeCount}</div>
+        <div class="kpi-sub">All drivers</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">Batch Breakdown <span style="color:var(--text3);font-size:10px">drivers per batch</span></div>
+        <div class="card-body">${batchHTML}</div>
+      </div>
+      <div class="card">
+        <div class="card-header">Absences & Suspensions</div>
+        <div class="card-body">${absHTML}</div>
+      </div>
+    </div>
+
+    <div class="section-header" style="margin-top:16px">
+      <div class="section-label">Driver Performance — Yesterday</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="card">
+      <table class="driver-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Driver</th><th>Orders</th><th>Hours</th>
+            <th>Batch</th><th>Grade</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${drTableHTML}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── RENDER MONTHLY ────────────────────────────────────────────────────────────
+function renderMonthly() {
+  // Collect available months
+  const monthSet = new Set();
+  allSheets.forEach(name => {
+    (allData[name]?.rows || []).forEach(r => {
+      if (r.date) monthSet.add(`${r.date.getFullYear()}-${String(r.date.getMonth()+1).padStart(2,'0')}`);
+    });
+  });
+
+  const months = Array.from(monthSet).sort();
+  if (!selectedMonth || !months.includes(selectedMonth)) {
+    selectedMonth = months[months.length - 1] || null;
+  }
+
+  const monthBtns = months.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(+y, +mo-1, 1).toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+    return `<button class="month-btn ${m===selectedMonth?'active':''}" onclick="selectMonth('${m}')">${label}</button>`;
+  }).join('');
+
+  if (!selectedMonth) {
+    document.getElementById('monthly-content').innerHTML = '<div class="loading">No monthly data found.</div>';
+    return;
+  }
+
+  const [selY, selMo] = selectedMonth.split('-').map(Number);
+  const monthStart = new Date(selY, selMo-1, 1);
+  const monthEnd   = new Date(selY, selMo, 0);
+
+  // Per-driver stats for selected month
+  const stats = allSheets.map(name => {
+    const driver = allData[name];
+    const rows   = (driver?.rows || []).filter(r =>
+      r.date && r.date >= monthStart && r.date <= monthEnd && !r.isNonWork
+    );
+    const orders   = rows.reduce((s,r) => s + (r.orders||0), 0);
+    const hours    = rows.reduce((s,r) => s + (r.hours||0), 0);
+    const days     = new Set(rows.map(r => dateKey(r.date))).size;
+    const utr      = hours > 0 ? orders / hours : null;
+    const avgDaily = days  > 0 ? orders / days  : 0;
+    const grade    = gradeDriver(avgDaily);
+    const batch    = currentBatch(driver?.rows || []);
+    return { name: driver?.name || name, orders, hours, days, utr, avgDaily, grade, batch };
+  });
+
+  stats.sort((a,b) => b.orders - a.orders);
+
+  // Rankings
+  const topOrders  = [...stats].sort((a,b) => b.orders-a.orders)[0];
+  const topHours   = [...stats].sort((a,b) => b.hours -a.hours )[0];
+  const topUTR     = [...stats].filter(s => s.days >= 10).sort((a,b) => (b.utr||0)-(a.utr||0))[0];
+  const weakest    = [...stats].sort((a,b) => a.orders-b.orders)[0];
+
+  // 10-day periods
+  const p1End = new Date(selY, selMo-1, 10);
+  const p2End = new Date(selY, selMo-1, 20);
+
+  function periodOrders(from, to) {
+    let total = 0;
+    allSheets.forEach(name => {
+      (allData[name]?.rows||[]).forEach(r => {
+        if (r.date && r.date >= from && r.date <= to && !r.isNonWork) total += r.orders||0;
+      });
+    });
+    return total;
+  }
+
+  const p1Ords = periodOrders(monthStart, p1End);
+  const p2Ords = periodOrders(new Date(selY,selMo-1,11), p2End);
+  const p3Ords = periodOrders(new Date(selY,selMo-1,21), monthEnd);
+  const totalM = p1Ords + p2Ords + p3Ords;
+
+  function pctOf(n) { return totalM ? ((n/totalM)*100).toFixed(1)+'%' : '—'; }
+
+  const tableHTML = stats.map((s,i) => `
+    <tr>
+      <td class="mono" style="color:var(--text3)">${i+1}</td>
+      <td class="driver-name">${s.name}</td>
+      <td class="mono accent">${s.orders}</td>
+      <td class="mono">${s.hours.toFixed(1)}</td>
+      <td class="mono">${s.days}</td>
+      <td class="mono">${fmt3(s.utr)}</td>
+      <td>${s.batch ? `<span class="badge badge-blue">B${s.batch}</span>` : '—'}</td>
+      <td><span class="badge badge-${gradeColor(s.grade)}">${s.grade}</span></td>
+    </tr>`).join('');
+
+  document.getElementById('monthly-content').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div class="section-header"><div class="section-label">Select Month</div><div class="section-line"></div></div>
+      <div class="month-selector">${monthBtns}</div>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value accent">${totalM}</div>
+        <div class="kpi-sub">Full month</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Most Orders</div>
+        <div class="kpi-value green">${topOrders?.orders||'—'}</div>
+        <div class="kpi-sub">${topOrders?.name?.split(' ')[0]||'—'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Most Hours</div>
+        <div class="kpi-value blue">${topHours?.hours?.toFixed(0)||'—'}</div>
+        <div class="kpi-sub">${topHours?.name?.split(' ')[0]||'—'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Highest UTR</div>
+        <div class="kpi-value">${fmt3(topUTR?.utr)}</div>
+        <div class="kpi-sub">${topUTR?.name?.split(' ')[0]||'—'} (≥10 days)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Weakest Driver</div>
+        <div class="kpi-value red">${weakest?.orders||'—'}</div>
+        <div class="kpi-sub">${weakest?.name?.split(' ')[0]||'—'}</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">10-Day Period Breakdown</div>
+        <div class="card-body">
+          <div class="batch-row">
+            <div class="batch-label" style="width:80px">Period 1</div>
+            <div style="font-size:11px;color:var(--text3);width:60px">01–10</div>
+            <div class="batch-bar-wrap"><div class="batch-bar-fill" style="width:${totalM?p1Ords/totalM*100:0}%"></div></div>
+            <div class="batch-count" style="width:50px;color:var(--accent)">${p1Ords}</div>
+            <div class="batch-names">${pctOf(p1Ords)}</div>
+          </div>
+          <div class="batch-row">
+            <div class="batch-label" style="width:80px">Period 2</div>
+            <div style="font-size:11px;color:var(--text3);width:60px">11–20</div>
+            <div class="batch-bar-wrap"><div class="batch-bar-fill" style="background:var(--green);width:${totalM?p2Ords/totalM*100:0}%"></div></div>
+            <div class="batch-count" style="width:50px;color:var(--green)">${p2Ords}</div>
+            <div class="batch-names">${pctOf(p2Ords)}</div>
+          </div>
+          <div class="batch-row">
+            <div class="batch-label" style="width:80px">Period 3</div>
+            <div style="font-size:11px;color:var(--text3);width:60px">21–end</div>
+            <div class="batch-bar-wrap"><div class="batch-bar-fill" style="background:var(--accent);width:${totalM?p3Ords/totalM*100:0}%"></div></div>
+            <div class="batch-count" style="width:50px;color:var(--accent)">${p3Ords}</div>
+            <div class="batch-names">${pctOf(p3Ords)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Top Performers</div>
+        <div class="card-body">
+          <div class="rank-item">
+            <div class="rank-num gold">🥇</div>
+            <div class="rank-name">${topOrders?.name||'—'}</div>
+            <div class="rank-value">${topOrders?.orders||'—'} orders</div>
+          </div>
+          <div class="rank-item">
+            <div class="rank-num silver">🥈</div>
+            <div class="rank-name">${stats[1]?.name||'—'}</div>
+            <div class="rank-value">${stats[1]?.orders||'—'} orders</div>
+          </div>
+          <div class="rank-item">
+            <div class="rank-num bronze">🥉</div>
+            <div class="rank-name">${stats[2]?.name||'—'}</div>
+            <div class="rank-value">${stats[2]?.orders||'—'} orders</div>
+          </div>
+          <div class="rank-item" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+            <div class="rank-num" style="color:var(--red)">⚠</div>
+            <div class="rank-name" style="color:var(--text2)">Weakest</div>
+            <div class="rank-value" style="color:var(--red)">${weakest?.name?.split(' ')[0]||'—'} · ${weakest?.orders||'—'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-header" style="margin-top:16px">
+      <div class="section-label">All Drivers — Monthly Summary</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="card">
+      <table class="monthly-table">
+        <thead>
+          <tr>
+            <th>#</th><th style="text-align:left">Driver</th>
+            <th>Orders</th><th>Hours</th><th>Days</th>
+            <th>UTR</th><th>Batch</th><th>Grade</th>
+          </tr>
+        </thead>
+        <tbody>${tableHTML}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function selectMonth(m) {
+  selectedMonth = m;
+  renderMonthly();
+}
+
+// ── RENDER ALL DRIVERS ────────────────────────────────────────────────────────
+function renderDrivers() {
+  const rows = allSheets.map((name, idx) => {
+    const driver   = allData[name];
+    const allRows  = driver?.rows || [];
+    const working  = allRows.filter(r => !r.isNonWork && r.orders > 0);
+    const total    = working.reduce((s,r) => s+(r.orders||0), 0);
+    const hours    = working.reduce((s,r) => s+(r.hours||0), 0);
+    const days     = new Set(working.map(r => dateKey(r.date))).size;
+    const utr      = hours > 0 ? total/hours : null;
+    const avgDaily = days  > 0 ? total/days  : 0;
+    const batch    = currentBatch(allRows);
+    const grade    = gradeDriver(avgDaily);
+    const firstD   = working.length ? working[0].date : null;
+    const lastD    = working.length ? working[working.length-1].date : null;
+    return { num: idx+1, name: driver?.name||name, total, hours, days, utr, avgDaily, batch, grade, firstD, lastD };
+  });
+
+  const tableHTML = rows.map(r => `
+    <tr>
+      <td class="mono" style="color:var(--text3)">${r.num}</td>
+      <td class="driver-name">${r.name}</td>
+      <td class="mono accent">${r.total}</td>
+      <td class="mono">${r.hours.toFixed(1)}</td>
+      <td class="mono">${r.days}</td>
+      <td class="mono">${fmt3(r.utr)}</td>
+      <td class="mono">${fmt3(r.avgDaily)}</td>
+      <td>${r.batch ? `<span class="badge badge-blue">B${r.batch}</span>` : '—'}</td>
+      <td><span class="badge badge-${gradeColor(r.grade)}">${r.grade}</span></td>
+      <td style="font-size:11px;color:var(--text3)">
+        ${r.firstD ? r.firstD.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '—'}
+      </td>
+    </tr>`).join('');
+
+  const sorted   = [...rows].sort((a,b) => b.total-a.total);
+  const topAll   = sorted[0];
+  const weakAll  = sorted[sorted.length-1];
+  const topUTR   = [...rows].filter(r=>r.days>=10).sort((a,b)=>(b.utr||0)-(a.utr||0))[0];
+
+  document.getElementById('drivers-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-label">All-Time Driver Overview</div>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:16px">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Drivers</div>
+        <div class="kpi-value">${allSheets.length}</div>
+        <div class="kpi-sub">In the system</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Best Overall</div>
+        <div class="kpi-value green" style="font-size:16px">${topAll?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-sub">${topAll?.total||0} orders total</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Highest UTR</div>
+        <div class="kpi-value accent" style="font-size:16px">${topUTR?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-sub">UTR ${fmt3(topUTR?.utr)}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Weakest Overall</div>
+        <div class="kpi-value red" style="font-size:16px">${weakAll?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-sub">${weakAll?.total||0} orders total</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">All Drivers — Cumulative Performance (sorted by seniority)</div>
+      <table class="monthly-table">
+        <thead>
+          <tr>
+            <th>#</th><th style="text-align:left">Driver</th>
+            <th>Total Orders</th><th>Total Hours</th><th>Days</th>
+            <th>UTR</th><th>Avg/Day</th><th>Batch</th><th>Grade</th><th>Start</th>
+          </tr>
+        </thead>
+        <tbody>${tableHTML}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── AUTO REFRESH every 5 minutes ─────────────────────────────────────────────
+setInterval(loadAllData, 5 * 60 * 1000);
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadAllData();
+</script>
+</body>
+</html>
