@@ -662,7 +662,7 @@ function parseDriverSheet(rows) {
   }
 
   const header = rows[headerIdx].map(h => String(h).trim().toLowerCase());
-  const iDate  = header.findIndex(h => const iDate = header.findIndex(h => h.startsWith('date')););
+  const iDate  = header.findIndex(h => h.startsWith('date'));
   const iTime  = header.findIndex(h => h === 'time');
   const iBatch = header.findIndex(h => h === 'batch');
   const iOrds  = header.findIndex(h => /order/.test(h));
@@ -773,6 +773,10 @@ function currentBatch(driverRows) {
   return working[working.length - 1].batch;
 }
 
+function cleanName(n) {
+  return String(n || '').replace(/_?(FAKE|REAL)_?Id.*$/i, '').replace(/_+$/, '').trim();
+}
+
 // ── RENDER DAILY ──────────────────────────────────────────────────────────────
 function renderDaily() {
   const yesterday = getYesterday();
@@ -799,7 +803,7 @@ function renderDaily() {
 
     if (!yRow || yRow.isNonWork || yRow.orders === 0) {
       absentCount++;
-      absences.push({ name: driver.name || name, reason: yRow ? yRow.timeVal : 'No row recorded' });
+      absences.push({ name: cleanName(driver.name || name), reason: yRow ? yRow.timeVal : 'No row recorded' });
     } else {
       activeCount++;
       totalOrders += yRow.orders;
@@ -809,11 +813,13 @@ function renderDaily() {
         if (yRow.hours >= 12) twelveHrOk++;
       }
 
-      const batch = yRow.batch || currentBatch(driver.rows) || 0;
-      if (batch > 0) {
-        if (!batchDrivers[batch]) batchDrivers[batch] = [];
-        batchDrivers[batch].push((driver.name || name).split(' ')[0]);
-      }
+    }
+
+    // Batch Breakdown: ALL drivers, batch from most recent valid working row
+    const curB = currentBatch(driver.rows) || 0;
+    if (curB > 0) {
+      if (!batchDrivers[curB]) batchDrivers[curB] = [];
+      batchDrivers[curB].push(cleanName(driver.name || name));
     }
 
     // MTD
@@ -829,7 +835,7 @@ function renderDaily() {
     const topDriver = allData[name];
     const yR = topDriver.rows.find(r => isSameDay(r.date, yesterday));
     driverRows.push({
-      name: driver.name || name,
+      name: cleanName(driver.name || name),
       orders: yR && !yR.isNonWork ? yR.orders : 0,
       hours:  yR && !yR.isNonWork ? yR.hours  : null,
       batch:  yR && !yR.isNonWork ? yR.batch  : (currentBatch(driver.rows) || '—'),
@@ -1018,7 +1024,7 @@ function renderMonthly() {
     const avgDaily = days  > 0 ? orders / days  : 0;
     const grade    = gradeDriver(avgDaily);
     const batch    = currentBatch(driver?.rows || []);
-    return { name: driver?.name || name, orders, hours, days, utr, avgDaily, grade, batch };
+    return { name: cleanName(driver?.name || name), orders, hours, days, utr, avgDaily, grade, batch };
   });
 
   stats.sort((a,b) => b.orders - a.orders);
@@ -1077,22 +1083,22 @@ function renderMonthly() {
       <div class="kpi-card">
         <div class="kpi-label">Most Orders</div>
         <div class="kpi-value green">${topOrders?.orders||'—'}</div>
-        <div class="kpi-sub">${topOrders?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-sub">${topOrders?.name||'—'}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Most Hours</div>
         <div class="kpi-value blue">${topHours?.hours?.toFixed(0)||'—'}</div>
-        <div class="kpi-sub">${topHours?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-sub">${topHours?.name||'—'}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Highest UTR</div>
         <div class="kpi-value">${fmt3(topUTR?.utr)}</div>
-        <div class="kpi-sub">${topUTR?.name?.split(' ')[0]||'—'} (≥10 days)</div>
+        <div class="kpi-sub">${topUTR?.name||'—'} (≥10 days)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Weakest Driver</div>
         <div class="kpi-value red">${weakest?.orders||'—'}</div>
-        <div class="kpi-sub">${weakest?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-sub">${weakest?.name||'—'}</div>
       </div>
     </div>
 
@@ -1144,7 +1150,7 @@ function renderMonthly() {
           <div class="rank-item" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
             <div class="rank-num" style="color:var(--red)">⚠</div>
             <div class="rank-name" style="color:var(--text2)">Weakest</div>
-            <div class="rank-value" style="color:var(--red)">${weakest?.name?.split(' ')[0]||'—'} · ${weakest?.orders||'—'}</div>
+            <div class="rank-value" style="color:var(--red)">${weakest?.name||'—'} · ${weakest?.orders||'—'}</div>
           </div>
         </div>
       </div>
@@ -1189,7 +1195,7 @@ function renderDrivers() {
     const grade    = gradeDriver(avgDaily);
     const firstD   = working.length ? working[0].date : null;
     const lastD    = working.length ? working[working.length-1].date : null;
-    return { num: idx+1, name: driver?.name||name, total, hours, days, utr, avgDaily, batch, grade, firstD, lastD };
+    return { num: idx+1, name: cleanName(driver?.name||name), total, hours, days, utr, avgDaily, batch, grade, firstD, lastD };
   });
 
   const tableHTML = rows.map(r => `
@@ -1227,17 +1233,17 @@ function renderDrivers() {
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Best Overall</div>
-        <div class="kpi-value green" style="font-size:16px">${topAll?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-value green" style="font-size:16px">${topAll?.name||'—'}</div>
         <div class="kpi-sub">${topAll?.total||0} orders total</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Highest UTR</div>
-        <div class="kpi-value accent" style="font-size:16px">${topUTR?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-value accent" style="font-size:16px">${topUTR?.name||'—'}</div>
         <div class="kpi-sub">UTR ${fmt3(topUTR?.utr)}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Weakest Overall</div>
-        <div class="kpi-value red" style="font-size:16px">${weakAll?.name?.split(' ')[0]||'—'}</div>
+        <div class="kpi-value red" style="font-size:16px">${weakAll?.name||'—'}</div>
         <div class="kpi-sub">${weakAll?.total||0} orders total</div>
       </div>
     </div>
