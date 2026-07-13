@@ -648,7 +648,7 @@ function parseDriverSheet(rows) {
   // Find header row (contains "Date" or "date")
   let headerIdx = -1;
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
-    if (rows[i].some(c => /^date$/i.test(String(c).trim()))) {
+    if (rows[i].some(c => /^date/i.test(String(c).trim()))) {
       headerIdx = i; break;
     }
   }
