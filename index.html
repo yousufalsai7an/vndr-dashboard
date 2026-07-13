@@ -682,12 +682,14 @@ function parseDriverSheet(rows) {
 
     let date = parseDate(row[iDate] || '');
 
-    // Fix swapped day/month by enforcing monotonic increase
-    if (date && prevDate) {
-      if (date < prevDate) {
-        // Try swapping day and month
-        const orig = date;
-        const swapped = new Date(orig.getFullYear(), orig.getDate() - 1, orig.getMonth() + 1);
+    // Fix swapped day/month by enforcing monotonic increase.
+    // Only swap when the day value can be a valid month (<= 12),
+    // otherwise JS month-overflow fabricates future years (2027/2028).
+    if (date && prevDate && date < prevDate) {
+      const dd = date.getDate();
+      const mm = date.getMonth() + 1;
+      if (dd <= 12) {
+        const swapped = new Date(date.getFullYear(), dd - 1, mm);
         if (swapped >= prevDate) date = swapped;
       }
     }
