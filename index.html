@@ -52,13 +52,17 @@
   }
 
   .logo {
-    background: var(--accent);
-    color: #000;
-    font-weight: 700;
-    font-size: 13px;
-    padding: 5px 10px;
+    background: #263566;   /* VINDAR approved royal indigo blue */
+    padding: 6px 9px;
     border-radius: 6px;
-    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo img {
+    height: 22px;
+    display: block;
   }
 
   .header-title {
@@ -532,7 +536,7 @@
 
 <div class="header">
   <div class="header-left">
-    <div class="logo">VD</div>
+    <div class="logo"><img src="data:image/png;base64,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" alt="VINDAR"></div>
     <div>
       <div class="header-title">VINDAR Operations Dashboard</div>
       <div class="header-sub">Talabat · Kuwait · Live from Google Sheets</div>
@@ -613,32 +617,50 @@ async function fetchSheet(name) {
 }
 
 // ── PARSE DATE ───────────────────────────────────────────────────────────────
-function parseDate(raw) {
-  if (!raw || typeof raw !== 'string') return null;
+// Returns BOTH interpretations (as-written and day/month swapped) so the
+// caller can pick the one that keeps dates chronological. Google randomly
+// swaps day/month in this file; swaps can jump FORWARD (e.g. 07 Jul stored
+// as 2026-12-07 = Dec) as well as backward, so both must be checked.
+function parseDateCandidates(raw) {
+  if (!raw || typeof raw !== 'string') return [];
   raw = raw.trim();
-
-  // DD-MM-YYYY or DD/MM/YYYY
   let m = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
   if (m) {
     let [, d, mo, y] = m;
     if (y.length === 2) y = '20' + y;
-    return new Date(+y, +mo - 1, +d);
+    const out = [new Date(+y, +mo - 1, +d)];
+    if (+d <= 12 && +d !== +mo) out.push(new Date(+y, +d - 1, +mo));
+    return out;
   }
-  // YYYY-MM-DD (Google sometimes swaps day/month here, handled below)
-  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (m) {
     const [, y, mo, d] = m;
-    return new Date(+y, +mo - 1, +d);
+    const out = [new Date(+y, +mo - 1, +d)];
+    if (+d <= 12 && +d !== +mo) out.push(new Date(+y, +d - 1, +mo));
+    return out;
   }
-  return null;
+  return [];
 }
 
 // ── PARSE HOURS ──────────────────────────────────────────────────────────────
 function parseHours(raw) {
   if (raw == null || raw === '') return null;
-  const v = parseFloat(String(raw).replace(',', '.'));
+  const s = String(raw).trim().replace(',', '.');
+  // Time object e.g. "14:00:00" or "14:30"
+  let m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (m) {
+    const v = +m[1] + (+m[2]) / 60;
+    return v > 20 ? null : v;
+  }
+  // h.mm convention: exactly two decimal digits < 60 are MINUTES (14.30 = 14h30m)
+  m = s.match(/^(\d{1,2})\.(\d{2})$/);
+  if (m && +m[2] < 60) {
+    const v = +m[1] + (+m[2]) / 60;
+    return v > 20 ? null : v;
+  }
+  const v = parseFloat(s);
   if (isNaN(v)) return null;
-  if (v > 20) return null;        // invalid
+  if (v > 20) return null;            // invalid
   if (v < 1 && v > 0) return v * 24;  // Excel fraction
   return v;
 }
@@ -680,17 +702,16 @@ function parseDriverSheet(rows) {
     const timeVal = iTime >= 0 ? String(row[iTime] || '').trim() : '';
     const isNonWork = NON_WORK.test(timeVal);
 
-    let date = parseDate(row[iDate] || '');
-
-    // Fix swapped day/month by enforcing monotonic increase.
-    // Only swap when the day value can be a valid month (<= 12),
-    // otherwise JS month-overflow fabricates future years (2027/2028).
-    if (date && prevDate && date < prevDate) {
-      const dd = date.getDate();
-      const mm = date.getMonth() + 1;
-      if (dd <= 12) {
-        const swapped = new Date(date.getFullYear(), dd - 1, mm);
-        if (swapped >= prevDate) date = swapped;
+    // Pick the candidate that keeps the sheet chronological:
+    // smallest candidate that is >= previous row's date.
+    const cands = parseDateCandidates(row[iDate] || '');
+    let date = null;
+    if (cands.length) {
+      if (prevDate) {
+        const valid = cands.filter(c => c >= prevDate);
+        date = valid.length ? valid.reduce((a, b) => (a < b ? a : b)) : cands[0];
+      } else {
+        date = cands[0];
       }
     }
     if (date) prevDate = date;
@@ -785,7 +806,7 @@ function renderDaily() {
   const today     = new Date();
 
   let totalOrders = 0, totalHours = 0;
-  let activeCount = 0, absentCount = 0;
+  let activeCount = 0, absentCount = 0, suspendedCount = 0;
   let twelveHrOk  = 0, activeWithHours = 0;
   let batchDrivers = {};
   const absences   = [];
@@ -804,8 +825,9 @@ function renderDaily() {
     const yRow = driver.rows.find(r => isSameDay(r.date, yesterday));
 
     if (!yRow || yRow.isNonWork || yRow.orders === 0) {
-      absentCount++;
-      absences.push({ name: cleanName(driver.name || name), reason: yRow ? yRow.timeVal : 'No row recorded' });
+      const reason = yRow ? yRow.timeVal : 'No row recorded';
+      if (/suspend/i.test(reason)) suspendedCount++; else absentCount++;
+      absences.push({ name: cleanName(driver.name || name), reason });
     } else {
       activeCount++;
       totalOrders += yRow.orders;
@@ -915,7 +937,12 @@ function renderDaily() {
       <div class="kpi-card">
         <div class="kpi-label">Absences</div>
         <div class="kpi-value ${absentCount === 0 ? 'green' : 'red'}">${absentCount}</div>
-        <div class="kpi-sub">No-show / Suspended</div>
+        <div class="kpi-sub">No-show / Sick / No row</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Suspensions</div>
+        <div class="kpi-value ${suspendedCount === 0 ? 'green' : 'red'}">${suspendedCount}</div>
+        <div class="kpi-sub">Suspended by Talabat</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">12-Hr Shift Rate</div>
