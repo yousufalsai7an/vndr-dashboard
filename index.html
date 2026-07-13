@@ -662,7 +662,7 @@ function parseDriverSheet(rows) {
   }
 
   const header = rows[headerIdx].map(h => String(h).trim().toLowerCase());
-  const iDate  = header.findIndex(h => h === 'date');
+  const iDate  = header.findIndex(h => const iDate = header.findIndex(h => h.startsWith('date')););
   const iTime  = header.findIndex(h => h === 'time');
   const iBatch = header.findIndex(h => h === 'batch');
   const iOrds  = header.findIndex(h => /order/.test(h));
