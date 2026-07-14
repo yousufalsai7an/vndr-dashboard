@@ -295,7 +295,7 @@
 
   .driver-name {
     font-weight: 500;
-    max-width: 140px;
+    max-width: 230px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -590,6 +590,7 @@ const BASE_URL  = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
 let allSheets   = [];
 let allData     = {};   // { sheetName: [ {date, batch, orders, hours, ...} ] }
 let selectedMonth = null;
+let selectedDailyDate = null;   // 'YYYY-MM-DD' chosen in the Daily tab; null = yesterday
 
 // ── TABS ─────────────────────────────────────────────────────────────────────
 function switchTab(name, el) {
@@ -685,6 +686,7 @@ function parseDriverSheet(rows) {
 
   const header = rows[headerIdx].map(h => String(h).trim().toLowerCase());
   const iDate  = header.findIndex(h => h.startsWith('date'));
+  const iTalId = header.findIndex(h => /talabat.*id/.test(h));
   const iTime  = header.findIndex(h => h === 'time');
   const iBatch = header.findIndex(h => h === 'batch');
   const iOrds  = header.findIndex(h => /order/.test(h));
@@ -720,10 +722,22 @@ function parseDriverSheet(rows) {
     const orders = iOrds   >= 0 ? parseInt(row[iOrds]   || '0') : 0;
     const hours  = iHours  >= 0 ? parseHours(row[iHours]) : null;
 
-    parsed.push({ date, batch, orders, hours, isNonWork, timeVal });
+    const talId = iTalId >= 0 ? String(row[iTalId] || '').trim() : '';
+
+    parsed.push({ date, batch, orders, hours, isNonWork, timeVal, talId });
   }
 
-  return { name: driverName, rows: parsed };
+  // ID type: Talabat Id column of the most recent working row wins;
+  // fall back to the header name. Tri-state: 'fake' | 'real' | null (unknown).
+  let idSource = driverName;
+  for (let i = parsed.length - 1; i >= 0; i--) {
+    if (!parsed[i].isNonWork && parsed[i].orders > 0 && parsed[i].talId) {
+      idSource = parsed[i].talId; break;
+    }
+  }
+  const idType = /fake/i.test(idSource) ? 'fake' : (/real/i.test(idSource) ? 'real' : null);
+
+  return { name: driverName, rows: parsed, isFakeId: idType === 'fake', idType };
 }
 
 // ── LOAD ALL DATA ─────────────────────────────────────────────────────────────
@@ -769,6 +783,19 @@ function getYesterday() {
   const d = new Date(); d.setDate(d.getDate() - 1); return d;
 }
 
+function getSelectedDay() {
+  if (selectedDailyDate) {
+    const [y, m, d] = selectedDailyDate.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return getYesterday();
+}
+
+function selectDay(v) {
+  selectedDailyDate = v || null;
+  renderDaily();
+}
+
 function fmt3(n) {
   if (n == null || isNaN(n)) return '—';
   return n.toFixed(3);
@@ -800,10 +827,15 @@ function cleanName(n) {
   return String(n || '').replace(/_?(FAKE|REAL)_?Id.*$/i, '').replace(/_+$/, '').trim();
 }
 
+function idBadge(t) {
+  if (t === 'fake') return '<span class="badge badge-yellow" style="margin-left:6px">Fake ID</span>';
+  if (t === 'real') return '<span class="badge badge-green" style="margin-left:6px">Real ID</span>';
+  return '<span class="badge badge-gray" style="margin-left:6px">ID Unknown</span>';
+}
+
 // ── RENDER DAILY ──────────────────────────────────────────────────────────────
 function renderDaily() {
-  const yesterday = getYesterday();
-  const today     = new Date();
+  const yesterday = getSelectedDay();   // selected day (default: yesterday)
 
   let totalOrders = 0, totalHours = 0;
   let activeCount = 0, absentCount = 0, suspendedCount = 0;
@@ -812,14 +844,14 @@ function renderDaily() {
   const absences   = [];
   const driverRows = [];
 
-  const mtdStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const mtdStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
   let mtdOrders  = 0, mtdHours = 0;
   let fakeCount  = 0;
 
   allSheets.forEach(name => {
     const driver = allData[name];
     if (!driver) return;
-    fakeCount++; // all are Fake ID per your data
+    if (driver.isFakeId) fakeCount++;
 
     // Yesterday's row
     const yRow = driver.rows.find(r => isSameDay(r.date, yesterday));
@@ -860,6 +892,7 @@ function renderDaily() {
     const yR = topDriver.rows.find(r => isSameDay(r.date, yesterday));
     driverRows.push({
       name: cleanName(driver.name || name),
+      idType: driver.idType,
       orders: yR && !yR.isNonWork ? yR.orders : 0,
       hours:  yR && !yR.isNonWork ? yR.hours  : null,
       batch:  yR && !yR.isNonWork ? yR.batch  : (currentBatch(driver.rows) || '—'),
@@ -906,7 +939,7 @@ function renderDaily() {
     const grade = d.active ? gradeDriver(d.orders) : 'D';
     return `<tr>
       <td class="mono" style="color:var(--text3)">${i+1}</td>
-      <td class="driver-name">${d.name}</td>
+      <td class="driver-name">${d.name} ${idBadge(d.idType)}</td>
       <td class="mono">${d.active ? d.orders : '—'}</td>
       <td class="mono">${d.hours != null ? fmt3(d.hours) : '—'}</td>
       <td>${d.batch > 0 ? `<span class="badge badge-blue">B${d.batch}</span>` : '—'}</td>
@@ -920,6 +953,9 @@ function renderDaily() {
   document.getElementById('daily-content').innerHTML = `
     <div class="section-header">
       <div class="section-label">Performance Date: ${yesterday.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'})}</div>
+      <input type="date" value="${dateKey(yesterday)}" onchange="selectDay(this.value)"
+        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+               border-radius:5px;padding:4px 8px;font-family:'Inter',sans-serif;font-size:11px;color-scheme:dark;">
       <div class="section-line"></div>
     </div>
 
@@ -976,8 +1012,8 @@ function renderDaily() {
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Fake ID</div>
-        <div class="kpi-value yellow">${fakeCount}</div>
-        <div class="kpi-sub">All drivers</div>
+        <div class="kpi-value ${fakeCount === 0 ? 'green' : 'yellow'}">${fakeCount}</div>
+        <div class="kpi-sub">of ${totalDrivers} drivers</div>
       </div>
     </div>
 
@@ -1053,7 +1089,7 @@ function renderMonthly() {
     const avgDaily = days  > 0 ? orders / days  : 0;
     const grade    = gradeDriver(avgDaily);
     const batch    = currentBatch(driver?.rows || []);
-    return { name: cleanName(driver?.name || name), orders, hours, days, utr, avgDaily, grade, batch };
+    return { name: cleanName(driver?.name || name), idType: driver?.idType ?? null, orders, hours, days, utr, avgDaily, grade, batch };
   });
 
   stats.sort((a,b) => b.orders - a.orders);
@@ -1088,7 +1124,7 @@ function renderMonthly() {
   const tableHTML = stats.map((s,i) => `
     <tr>
       <td class="mono" style="color:var(--text3)">${i+1}</td>
-      <td class="driver-name">${s.name}</td>
+      <td class="driver-name">${s.name} ${idBadge(s.idType)}</td>
       <td class="mono accent">${s.orders}</td>
       <td class="mono">${s.hours.toFixed(1)}</td>
       <td class="mono">${s.days}</td>
@@ -1176,6 +1212,11 @@ function renderMonthly() {
             <div class="rank-name">${stats[2]?.name||'—'}</div>
             <div class="rank-value">${stats[2]?.orders||'—'} orders</div>
           </div>
+          <div class="rank-item">
+            <div class="rank-num" style="color:var(--accent2)">⏱</div>
+            <div class="rank-name">Most Hours</div>
+            <div class="rank-value" style="color:var(--accent2)">${topHours?.name||'—'} · ${topHours?.hours!=null?topHours.hours.toFixed(1):'—'} h</div>
+          </div>
           <div class="rank-item" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
             <div class="rank-num" style="color:var(--red)">⚠</div>
             <div class="rank-name" style="color:var(--text2)">Weakest</div>
@@ -1224,13 +1265,13 @@ function renderDrivers() {
     const grade    = gradeDriver(avgDaily);
     const firstD   = working.length ? working[0].date : null;
     const lastD    = working.length ? working[working.length-1].date : null;
-    return { num: idx+1, name: cleanName(driver?.name||name), total, hours, days, utr, avgDaily, batch, grade, firstD, lastD };
+    return { num: idx+1, name: cleanName(driver?.name||name), idType: driver?.idType ?? null, total, hours, days, utr, avgDaily, batch, grade, firstD, lastD };
   });
 
   const tableHTML = rows.map(r => `
     <tr>
       <td class="mono" style="color:var(--text3)">${r.num}</td>
-      <td class="driver-name">${r.name}</td>
+      <td class="driver-name">${r.name} ${idBadge(r.idType)}</td>
       <td class="mono accent">${r.total}</td>
       <td class="mono">${r.hours.toFixed(1)}</td>
       <td class="mono">${r.days}</td>
