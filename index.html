@@ -687,6 +687,9 @@ function parseDriverSheet(rows) {
   const header = rows[headerIdx].map(h => String(h).trim().toLowerCase());
   const iDate  = header.findIndex(h => h.startsWith('date'));
   const iTalId = header.findIndex(h => /talabat.*id/.test(h));
+  const iLate  = header.findIndex(h => /late.*login/.test(h));
+  const iNoSh  = header.findIndex(h => /no.?show/.test(h));
+  const iSusp  = header.findIndex(h => /suspension/.test(h));
   const iTime  = header.findIndex(h => h === 'time');
   const iBatch = header.findIndex(h => h === 'batch');
   const iOrds  = header.findIndex(h => /order/.test(h));
@@ -722,9 +725,12 @@ function parseDriverSheet(rows) {
     const orders = iOrds   >= 0 ? parseInt(row[iOrds]   || '0') : 0;
     const hours  = iHours  >= 0 ? parseHours(row[iHours]) : null;
 
-    const talId = iTalId >= 0 ? String(row[iTalId] || '').trim() : '';
+    const talId    = iTalId >= 0 ? String(row[iTalId] || '').trim() : '';
+    const lateVal  = iLate  >= 0 ? String(row[iLate]  || '').trim() : '';
+    const noShowVal = iNoSh >= 0 ? String(row[iNoSh]  || '').trim() : '';
+    const suspVal  = iSusp  >= 0 ? String(row[iSusp]  || '').trim() : '';
 
-    parsed.push({ date, batch, orders, hours, isNonWork, timeVal, talId });
+    parsed.push({ date, batch, orders, hours, isNonWork, timeVal, talId, lateVal, noShowVal, suspVal });
   }
 
   // ID type: Talabat Id column of the most recent working row wins;
@@ -837,6 +843,41 @@ function idBadge(t) {
 // or before refDate. Historical views must show the ID the driver actually
 // held on that date, not his current one. Returns null (Unknown) if no row
 // with a Talabat Id exists on or before refDate — never assumes.
+// Batch AS OF a given date: batch of the latest working row on or before refDate.
+function batchAsOf(driverRows, refDate) {
+  for (let i = driverRows.length - 1; i >= 0; i--) {
+    const r = driverRows[i];
+    if (!r.isNonWork && r.orders > 0 && r.batch > 0 && r.date && r.date <= refDate) return r.batch;
+  }
+  return null;
+}
+
+// Discipline issues: count only EXPLICIT entries (Yes / نعم), never assume.
+function isYes(v) { return /yes|نعم/i.test(String(v || '')); }
+
+function issueCounts(rows, from, to) {
+  let noShow = 0, late = 0, susp = 0;
+  rows.forEach(r => {
+    if (!r.date || r.date < from || r.date > to) return;
+    if (isYes(r.noShowVal)) noShow++;
+    if (isYes(r.lateVal)) late++;
+    if (isYes(r.suspVal) || /suspend/i.test(r.timeVal || '')) susp++;
+  });
+  return { noShow, late, susp };
+}
+
+function topOffenderHTML(offenders, key, label, from, to) {
+  const top = offenders.reduce((a, b) => (b[key] > a[key] ? b : a), { name: '', [key]: 0 });
+  const val = top[key] > 0
+    ? `<span style="color:var(--red);font-weight:600">${top.name} · ${top[key]}</span>`
+    : '<span style="color:var(--text3)">None recorded</span>';
+  return `<div class="rank-item">
+    <div class="rank-num" style="color:var(--red)">⚠</div>
+    <div class="rank-name">${label}</div>
+    <div class="rank-value" style="font-family:'JetBrains Mono',monospace">${val}</div>
+  </div>`;
+}
+
 function idTypeAsOf(driverRows, refDate) {
   let src = '';
   for (let i = driverRows.length - 1; i >= 0; i--) {
@@ -885,8 +926,8 @@ function renderDaily() {
 
     }
 
-    // Batch Breakdown: ALL drivers, batch from most recent valid working row
-    const curB = currentBatch(driver.rows) || 0;
+    // Batch Breakdown: ALL drivers, batch AS OF the selected day
+    const curB = batchAsOf(driver.rows, yesterday) || 0;
     if (curB > 0) {
       if (!batchDrivers[curB]) batchDrivers[curB] = [];
       batchDrivers[curB].push(cleanName(driver.name || name));
@@ -909,7 +950,7 @@ function renderDaily() {
       idType: idTypeAsOf(driver.rows, yesterday),
       orders: yR && !yR.isNonWork ? yR.orders : 0,
       hours:  yR && !yR.isNonWork ? yR.hours  : null,
-      batch:  yR && !yR.isNonWork ? yR.batch  : (currentBatch(driver.rows) || '—'),
+      batch:  yR && !yR.isNonWork && yR.batch > 0 ? yR.batch : (batchAsOf(driver.rows, yesterday) || '—'),
       active: yR && !yR.isNonWork && yR.orders > 0,
       reason: (!yR || yR.isNonWork) ? (yR ? yR.timeVal : 'No row') : ''
     });
@@ -951,11 +992,15 @@ function renderDaily() {
   // Driver rows table
   let drTableHTML = driverRows.map((d,i) => {
     const grade = d.active ? gradeDriver(d.orders) : 'D';
+    const low     = d.active && d.hours != null && d.hours < 12;
+    const veryLow = d.active && d.hours != null && d.hours < 8;
+    const nameStyle  = low ? `font-weight:700;${veryLow ? 'color:var(--red);' : ''}` : '';
+    const hoursStyle = low ? `font-weight:700;color:var(${veryLow ? '--red' : '--yellow'});` : '';
     return `<tr>
       <td class="mono" style="color:var(--text3)">${i+1}</td>
-      <td class="driver-name">${d.name} ${idBadge(d.idType)}</td>
+      <td class="driver-name" style="${nameStyle}">${d.name} ${idBadge(d.idType)}</td>
       <td class="mono">${d.active ? d.orders : '—'}</td>
-      <td class="mono">${d.hours != null ? fmt3(d.hours) : '—'}</td>
+      <td class="mono" style="${hoursStyle}">${d.hours != null ? fmt3(d.hours) : '—'}</td>
       <td>${d.batch > 0 ? `<span class="badge badge-blue">B${d.batch}</span>` : '—'}</td>
       <td><span class="badge badge-${gradeColor(grade)}">${grade}</span></td>
       <td style="color:${d.active ? 'var(--green)':'var(--red)'}">
@@ -1102,7 +1147,7 @@ function renderMonthly() {
     const utr      = hours > 0 ? orders / hours : null;
     const avgDaily = days  > 0 ? orders / days  : 0;
     const grade    = gradeDriver(avgDaily);
-    const batch    = currentBatch(driver?.rows || []);
+    const batch    = batchAsOf(driver?.rows || [], monthEnd);
     return { name: cleanName(driver?.name || name), idType: idTypeAsOf(driver?.rows || [], monthEnd), orders, hours, days, utr, avgDaily, grade, batch };
   });
 
@@ -1134,6 +1179,12 @@ function renderMonthly() {
   const totalM = p1Ords + p2Ords + p3Ords;
 
   function pctOf(n) { return totalM ? ((n/totalM)*100).toFixed(1)+'%' : '—'; }
+
+  const offenders = allSheets.map(name => {
+    const d = allData[name];
+    const cnt = issueCounts(d?.rows || [], monthStart, monthEnd);
+    return { name: cleanName(d?.name || name), ...cnt };
+  });
 
   const tableHTML = stats.map((s,i) => `
     <tr>
@@ -1227,6 +1278,11 @@ function renderMonthly() {
             <div class="rank-value">${stats[2]?.orders||'—'} orders</div>
           </div>
           <div class="rank-item">
+            <div class="rank-num" style="color:var(--accent)">⚡</div>
+            <div class="rank-name">Highest UTR</div>
+            <div class="rank-value">${topUTR?.name||'—'} · ${fmt3(topUTR?.utr)}</div>
+          </div>
+          <div class="rank-item">
             <div class="rank-num" style="color:var(--accent2)">⏱</div>
             <div class="rank-name">Most Hours</div>
             <div class="rank-value" style="color:var(--accent2)">${topHours?.name||'—'} · ${topHours?.hours!=null?topHours.hours.toFixed(1):'—'} h</div>
@@ -1237,6 +1293,15 @@ function renderMonthly() {
             <div class="rank-value" style="color:var(--red)">${weakest?.name||'—'} · ${weakest?.orders||'—'}</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">Discipline — Top Offenders <span style="color:var(--text3);font-size:10px">selected month · explicit entries only</span></div>
+      <div class="card-body">
+        ${topOffenderHTML(offenders, 'noShow', 'Most No-show')}
+        ${topOffenderHTML(offenders, 'late', 'Most Late login')}
+        ${topOffenderHTML(offenders, 'susp', 'Most Suspensions')}
       </div>
     </div>
 
@@ -1298,6 +1363,12 @@ function renderDrivers() {
       </td>
     </tr>`).join('');
 
+  const offendersAll = allSheets.map(name => {
+    const d = allData[name];
+    const cnt = issueCounts(d?.rows || [], new Date(2000, 0, 1), new Date());
+    return { name: cleanName(d?.name || name), ...cnt };
+  });
+
   const sorted   = [...rows].sort((a,b) => b.total-a.total);
   const topAll   = sorted[0];
   const weakAll  = sorted[sorted.length-1];
@@ -1329,6 +1400,15 @@ function renderDrivers() {
         <div class="kpi-label">Weakest Overall</div>
         <div class="kpi-value red" style="font-size:16px">${weakAll?.name||'—'}</div>
         <div class="kpi-sub">${weakAll?.total||0} orders total</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">Discipline — Top Offenders <span style="color:var(--text3);font-size:10px">all time · explicit entries only</span></div>
+      <div class="card-body">
+        ${topOffenderHTML(offendersAll, 'noShow', 'Most No-show')}
+        ${topOffenderHTML(offendersAll, 'late', 'Most Late login')}
+        ${topOffenderHTML(offendersAll, 'susp', 'Most Suspensions')}
       </div>
     </div>
 
