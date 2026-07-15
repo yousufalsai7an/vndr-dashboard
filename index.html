@@ -833,6 +833,20 @@ function idBadge(t) {
   return '<span class="badge badge-gray" style="margin-left:6px">ID Unknown</span>';
 }
 
+// ID type AS OF a given date: the Talabat Id value of the latest row dated on
+// or before refDate. Historical views must show the ID the driver actually
+// held on that date, not his current one. Returns null (Unknown) if no row
+// with a Talabat Id exists on or before refDate — never assumes.
+function idTypeAsOf(driverRows, refDate) {
+  let src = '';
+  for (let i = driverRows.length - 1; i >= 0; i--) {
+    const r = driverRows[i];
+    if (r.talId && r.date && r.date <= refDate) { src = r.talId; break; }
+  }
+  if (!src) return null;
+  return /fake/i.test(src) ? 'fake' : (/real/i.test(src) ? 'real' : null);
+}
+
 // ── RENDER DAILY ──────────────────────────────────────────────────────────────
 function renderDaily() {
   const yesterday = getSelectedDay();   // selected day (default: yesterday)
@@ -851,7 +865,7 @@ function renderDaily() {
   allSheets.forEach(name => {
     const driver = allData[name];
     if (!driver) return;
-    if (driver.isFakeId) fakeCount++;
+    if (idTypeAsOf(driver.rows, yesterday) === 'fake') fakeCount++;
 
     // Yesterday's row
     const yRow = driver.rows.find(r => isSameDay(r.date, yesterday));
@@ -892,7 +906,7 @@ function renderDaily() {
     const yR = topDriver.rows.find(r => isSameDay(r.date, yesterday));
     driverRows.push({
       name: cleanName(driver.name || name),
-      idType: driver.idType,
+      idType: idTypeAsOf(driver.rows, yesterday),
       orders: yR && !yR.isNonWork ? yR.orders : 0,
       hours:  yR && !yR.isNonWork ? yR.hours  : null,
       batch:  yR && !yR.isNonWork ? yR.batch  : (currentBatch(driver.rows) || '—'),
@@ -1089,7 +1103,7 @@ function renderMonthly() {
     const avgDaily = days  > 0 ? orders / days  : 0;
     const grade    = gradeDriver(avgDaily);
     const batch    = currentBatch(driver?.rows || []);
-    return { name: cleanName(driver?.name || name), idType: driver?.idType ?? null, orders, hours, days, utr, avgDaily, grade, batch };
+    return { name: cleanName(driver?.name || name), idType: idTypeAsOf(driver?.rows || [], monthEnd), orders, hours, days, utr, avgDaily, grade, batch };
   });
 
   stats.sort((a,b) => b.orders - a.orders);
