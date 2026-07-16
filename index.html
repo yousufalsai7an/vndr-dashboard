@@ -531,6 +531,7 @@
   .rank-name { flex: 1; font-weight: 500; font-size: 12px; }
   .rank-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -553,6 +554,7 @@
   <div class="tab active" onclick="switchTab('daily', this)">📊 Daily Report</div>
   <div class="tab" onclick="switchTab('monthly', this)">📅 Monthly</div>
   <div class="tab" onclick="switchTab('drivers', this)">🚗 All Drivers</div>
+  <div class="tab" onclick="switchTab('trends', this)">📈 Trends</div>
 </div>
 
 <div class="main">
@@ -574,6 +576,13 @@
   <!-- DRIVERS PANEL -->
   <div class="panel" id="panel-drivers">
     <div id="drivers-content">
+      <div class="loading"><div class="spinner"></div> Loading...</div>
+    </div>
+  </div>
+
+  <!-- TRENDS PANEL -->
+  <div class="panel" id="panel-trends">
+    <div id="trends-content">
       <div class="loading"><div class="spinner"></div> Loading...</div>
     </div>
   </div>
@@ -764,10 +773,11 @@ async function loadAllData() {
     renderDaily();
     renderMonthly();
     renderDrivers();
+    renderTrends();
 
   } catch (e) {
     document.getElementById('lastUpdate').textContent = 'Error';
-    ['daily-content', 'monthly-content', 'drivers-content'].forEach(id => {
+    ['daily-content', 'monthly-content', 'drivers-content', 'trends-content'].forEach(id => {
       document.getElementById(id).innerHTML =
         `<div class="error-box">⚠ Could not load data: ${e.message}</div>`;
     });
@@ -1433,6 +1443,188 @@ setInterval(loadAllData, 5 * 60 * 1000);
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 loadAllData();
+
+// ── TRENDS TAB ────────────────────────────────────────────────────────────────
+let trendsAgg   = '10day';        // 'weekly' | '10day' | 'monthly'
+let trendsDriver = null;          // sheet name of selected driver
+let trendCharts = {};             // canvasId -> Chart instance
+
+function bucketKey(d, agg) {
+  const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
+  if (agg === 'monthly') return `${y}-${String(m+1).padStart(2,'0')}`;
+  if (agg === '10day') {
+    const p = day <= 10 ? 1 : day <= 20 ? 2 : 3;
+    return `${y}-${String(m+1).padStart(2,'0')}-P${p}`;
+  }
+  // weekly: Monday of the week
+  const t = new Date(y, m, day);
+  const dow = (t.getDay() + 6) % 7;   // Mon=0
+  t.setDate(t.getDate() - dow);
+  return dateKey(t);
+}
+
+const MONTHS_SH = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function bucketLabel(key, agg) {
+  if (agg === 'monthly') {
+    const [y, m] = key.split('-');
+    return `${MONTHS_SH[+m-1]} ${y}`;
+  }
+  if (agg === '10day') {
+    const [y, m, p] = key.split('-');
+    const rng = p === 'P1' ? '1–10' : p === 'P2' ? '11–20' : '21–end';
+    return `${MONTHS_SH[+m-1]} ${rng}`;
+  }
+  const [y, m, d] = key.split('-');
+  return `Wk ${+d} ${MONTHS_SH[+m-1]}`;
+}
+
+// Aggregate rows (already-parsed working rows) into ordered buckets.
+// Returns { keys, labels, orders[], hours[], utr[], activeDays[] }
+function aggregateRows(rowsList, agg) {
+  const buckets = {};   // key -> {orders, hours, days:Set-like count}
+  rowsList.forEach(r => {
+    if (!r.date || r.isNonWork || !(r.orders > 0)) return;
+    const k = bucketKey(r.date, agg);
+    if (!buckets[k]) buckets[k] = { orders: 0, hours: 0, days: 0 };
+    buckets[k].orders += r.orders;
+    if (r.hours != null) buckets[k].hours += r.hours;
+    buckets[k].days += 1;
+  });
+  const keys = Object.keys(buckets).sort();
+  return {
+    keys,
+    labels: keys.map(k => bucketLabel(k, agg)),
+    orders: keys.map(k => buckets[k].orders),
+    hours:  keys.map(k => +buckets[k].hours.toFixed(3)),
+    utr:    keys.map(k => buckets[k].hours > 0 ? +(buckets[k].orders / buckets[k].hours).toFixed(3) : null),
+    days:   keys.map(k => buckets[k].days)
+  };
+}
+
+function destroyChart(id) {
+  if (trendCharts[id]) { trendCharts[id].destroy(); delete trendCharts[id]; }
+}
+
+function drawTrendChart(id, labels, datasets, yTitle) {
+  destroyChart(id);
+  const el = document.getElementById(id);
+  if (!el) return;
+  trendCharts[id] = new Chart(el.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#9ca3af', boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: {} }
+      },
+      scales: {
+        x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { title: { display: !!yTitle, text: yTitle || '', color: '#9ca3af' },
+             ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' },
+             beginAtZero: true }
+      }
+    }
+  });
+}
+
+function setTrendsAgg(agg, el) {
+  trendsAgg = agg;
+  document.querySelectorAll('.trends-agg-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderTrendsCharts();
+}
+
+function setTrendsDriver(v) {
+  trendsDriver = v || null;
+  renderTrendsCharts();
+}
+
+function renderTrends() {
+  const names = Object.keys(allData).filter(n => allData[n] && allData[n].rows && allData[n].rows.length);
+  if (!trendsDriver || !names.includes(trendsDriver)) trendsDriver = names[0] || null;
+
+  const opts = names.map(n =>
+    `<option value="${n}" ${n === trendsDriver ? 'selected' : ''}>${cleanName(allData[n].name) || n}</option>`
+  ).join('');
+
+  document.getElementById('trends-content').innerHTML = `
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <span>PERFORMANCE TRENDS</span>
+      <span>
+        <button class="trends-agg-btn month-btn ${trendsAgg==='weekly'?'active':''}"  onclick="setTrendsAgg('weekly', this)">Weekly</button>
+        <button class="trends-agg-btn month-btn ${trendsAgg==='10day'?'active':''}"   onclick="setTrendsAgg('10day', this)">10-Day</button>
+        <button class="trends-agg-btn month-btn ${trendsAgg==='monthly'?'active':''}" onclick="setTrendsAgg('monthly', this)">Monthly</button>
+      </span>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header"><div class="card-title">Company — Overall Trend</div></div>
+      <div style="padding:16px">
+        <div style="height:260px"><canvas id="chart-co-orders"></canvas></div>
+        <div style="height:220px;margin-top:18px"><canvas id="chart-co-utr"></canvas></div>
+        <div style="height:220px;margin-top:18px"><canvas id="chart-co-hours"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div class="card-title">Driver — Individual Trend</div>
+        <select onchange="setTrendsDriver(this.value)"
+                style="background:var(--bg3,#1a2030);color:var(--text1,#e5e7eb);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;font-size:13px">
+          ${opts}
+        </select>
+      </div>
+      <div style="padding:16px">
+        <div style="height:260px"><canvas id="chart-dr-orders"></canvas></div>
+        <div style="height:220px;margin-top:18px"><canvas id="chart-dr-utr"></canvas></div>
+        <div style="height:220px;margin-top:18px"><canvas id="chart-dr-hours"></canvas></div>
+      </div>
+    </div>`;
+
+  renderTrendsCharts();
+}
+
+function renderTrendsCharts() {
+  if (typeof Chart === 'undefined') {
+    document.getElementById('trends-content').innerHTML =
+      '<div class="error-box">⚠ Chart library failed to load. Check internet connection and refresh.</div>';
+    return;
+  }
+  // Company: all rows of all drivers combined
+  const companyRows = [];
+  Object.values(allData).forEach(d => { if (d && d.rows) companyRows.push(...d.rows); });
+  const co = aggregateRows(companyRows, trendsAgg);
+
+  const C_ORD = '#f59e0b', C_UTR = '#3b82f6', C_HRS = '#10b981';
+
+  drawTrendChart('chart-co-orders', co.labels,
+    [{ label: 'Orders', data: co.orders, borderColor: C_ORD, backgroundColor: C_ORD+'33', tension: .3, fill: true }],
+    'Orders');
+  drawTrendChart('chart-co-utr', co.labels,
+    [{ label: 'UTR (orders/hour)', data: co.utr, borderColor: C_UTR, backgroundColor: C_UTR+'33', tension: .3, spanGaps: true }],
+    'UTR');
+  drawTrendChart('chart-co-hours', co.labels,
+    [{ label: 'Working Hours', data: co.hours, borderColor: C_HRS, backgroundColor: C_HRS+'33', tension: .3 }],
+    'Hours');
+
+  // Driver
+  const d = trendsDriver ? allData[trendsDriver] : null;
+  const dr = aggregateRows(d && d.rows ? d.rows : [], trendsAgg);
+  drawTrendChart('chart-dr-orders', dr.labels,
+    [{ label: 'Orders', data: dr.orders, borderColor: C_ORD, backgroundColor: C_ORD+'33', tension: .3, fill: true }],
+    'Orders');
+  drawTrendChart('chart-dr-utr', dr.labels,
+    [{ label: 'UTR (orders/hour)', data: dr.utr, borderColor: C_UTR, backgroundColor: C_UTR+'33', tension: .3, spanGaps: true }],
+    'UTR');
+  drawTrendChart('chart-dr-hours', dr.labels,
+    [{ label: 'Working Hours', data: dr.hours, borderColor: C_HRS, backgroundColor: C_HRS+'33', tension: .3 }],
+    'Hours');
+}
+
 </script>
 </body>
 </html>
